@@ -60,11 +60,19 @@ void setup()
         .smh_lvl = TOUCH_PAD_SMOOTH_IIR_2};
     touch_pad_filter_set_config(&filter_config); //= تنظیم فیلتر تاچ
 
+    //{ تنظیمات ضد آب تاچ پد
+    touch_pad_waterproof_t touch_pad_waterproof = {
+        .guard_ring_pad = TOUCH_PAD_NUM1,         //= پد حلقه محافظ
+        .shield_driver = TOUCH_PAD_SHIELD_DRV_L7, //= درایور شیلد
+    };
+    touch_pad_waterproof_get_config(&touch_pad_waterproof); //= دریافت تنظیمات ضد آب
+    touch_pad_waterproof_enable();                          //= فعال‌سازی ضد آب
+
     touch_pad_denoise_enable(); //= فعال‌سازی کاهش نویز
     touch_pad_filter_enable();  //= فعال‌سازی فیلتر
     calibrate_touch();          //= کالیبراسیون تاچ
 
-    Serial.println("Touch pad initialized with denoise."); //= پیام اتمام تنظیمات
+    // Serial.println("Touch pad initialized with denoise."); //= پیام اتمام تنظیمات
 
     touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER); //= فعال‌سازی تایمر داخلی تاچ
     touch_pad_fsm_start();                        //= شروع تایمر داخلی تاچ

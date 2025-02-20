@@ -1,6 +1,8 @@
 //!!! مشکل کالیبراسیون
 //!!! تاچ آب
 
+//!!! هنگ کردن و از کار افتادن (تقریبا اوکی شده)
+
 #include <Arduino.h>
 #include "driver/touch_pad.h"
 
@@ -9,13 +11,17 @@
 #define TOUCH_THRESH 1500    //= مقدار آستانه برای تشخیص لمس (بسته به طراحی مدار، تنظیم شود)
 
 /* آرایه‌ی پدهای تاچ */
-static const touch_pad_t Button_X[TOUCH_BUTTON_NUM_X] = {TOUCH_PAD_NUM13, TOUCH_PAD_NUM8, TOUCH_PAD_NUM9, TOUCH_PAD_NUM11}; //=تاچ نامبر های ردیف
-static const touch_pad_t Button_Y[TOUCH_BUTTON_NUM_Y] = {TOUCH_PAD_NUM10, TOUCH_PAD_NUM14, TOUCH_PAD_NUM12};                //= تاچ نامبر های ستون
+static const touch_pad_t Button_X[TOUCH_BUTTON_NUM_X] = {TOUCH_PAD_NUM8, TOUCH_PAD_NUM14, TOUCH_PAD_NUM11, TOUCH_PAD_NUM9}; //=تاچ نامبر های ردیف
+static const touch_pad_t Button_Y[TOUCH_BUTTON_NUM_Y] = {TOUCH_PAD_NUM10, TOUCH_PAD_NUM13, TOUCH_PAD_NUM12};                //= تاچ نامبر های ستون
 
 //{ مقدار پایه تاچ(برای کالیبراسیون)
 static uint32_t base_values_x[TOUCH_BUTTON_NUM_X];
 static uint32_t base_values_y[TOUCH_BUTTON_NUM_Y];
 //}
+
+uint32_t touch_value_x_old[TOUCH_BUTTON_NUM_X]; //= مقدار خوانده شده تاچ ردیف
+uint32_t touch_value_y_old[TOUCH_BUTTON_NUM_Y]; //= مقدار خوانده شده تاچ ستون
+int Equal_touch = 0;
 
 //{مقدار پیش فرض هر بلوک تاچ
 uint8_t touch_number[TOUCH_BUTTON_NUM_X][TOUCH_BUTTON_NUM_Y] = {
@@ -31,8 +37,8 @@ uint32_t touch_value_x; //= مقدار خوانده شده تاچ ردیف
 uint32_t touch_value_y; //= مقدار خوانده شده تاچ ستون
 uint32_t touch_value;   //= مقدار خوانده شده تاچ
 
-static unsigned long lastReadTime = 0;  //= آخرین تایم که تاچ ها خوانده شده
-const unsigned long readInterval = 200; //= هر 200 میلی‌ثانیه یکبار خواندن
+static unsigned long lastReadTime = 0; //= آخرین تایم که تاچ ها خوانده شده
+const unsigned long readInterval = 45; //= هر 200 میلی‌ثانیه یکبار خواندن
 //{کالیبراسیون تاچ
 void calibrate_touch()
 {
@@ -86,36 +92,51 @@ void setup()
         .mode = TOUCH_PAD_FILTER_IIR_16,
         .debounce_cnt = 7,
         .noise_thr = 2,
-        .jitter_step = 4,
-        .smh_lvl = TOUCH_PAD_SMOOTH_IIR_2};
+        .jitter_step = 4,                        //= تنظیم مقدار جابجایی
+        .smh_lvl = TOUCH_PAD_SMOOTH_IIR_2};      //= تنظیم سطح صاف کننده
     touch_pad_filter_set_config(&filter_config); //= تنظیم فیلتر تاچ
 
     touch_pad_denoise_enable(); //= فعال‌سازی کاهش نویز
     touch_pad_filter_enable();  //= فعال‌سازی فیلتر
     calibrate_touch();          //= کالیبراسیون تاچ
 
-    Serial.println("Touch pad initialized with denoise.");
+    Serial.println("Touch pad initialized with denoise."); //= پیام اتمام تنظیمات
 
     touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER); //= فعال‌سازی تایمر داخلی تاچ
     touch_pad_fsm_start();                        //= شروع تایمر داخلی تاچ
     delay(1000);                                  //= تاخیر برای اطمینان از شروع صحیح
     calibrate_touch();                            //= کالیبراسیون تاچ
+    // touch_pad_timeout_set(true, 100000); //= تنظیم تایم اوت تاچ
 }
 
 void loop()
 {
-    lastReadTime = micros();      //= ذخیره زمان فعلی
-    if (touch_pad_meas_is_done()) //= بررسی اتمام اندازه‌گیری تاچ
+    int a = micros(); //= خواندن زمان میکروثانیه
     {
-        // if (millis() - lastReadTime >= readInterval)
+        if (millis() - lastReadTime >= readInterval) //= بررسی زمان خواندن مجدد
         {
-            // lastReadTime = millis();
-            for (uint8_t X = 0; X < TOUCH_BUTTON_NUM_X; X++)
+            lastReadTime = millis();                         //= به‌روزرسانی زمان آخرین خواندن
+            for (uint8_t X = 0; X < TOUCH_BUTTON_NUM_X; X++) //= حلقه برای خواندن مقادیر تاچ ردیف
             {
-                for (uint8_t Y = 0; Y < TOUCH_BUTTON_NUM_Y; Y++)
+                touch_pad_filter_read_smooth(Button_X[X], &touch_value_x); //= خواندن مقدار تاچ ردیف
+                if (touch_value_x == touch_value_x_old[X])                 //= بررسی مقدار تاچ یکسان
+                    Equal_touch++;                                         //= افزایش شمارنده تاچ یکسان
+                else
                 {
-                    touch_pad_filter_read_smooth(Button_X[X], &touch_value_x);            //= خواندن مقدار تاچ ردیف
-                    touch_pad_filter_read_smooth(Button_Y[Y], &touch_value_y);            //= خواندن مقدار تاچ ستون
+                    touch_value_x_old[X] = touch_value_x; //= به‌روزرسانی مقدار تاچ قدیمی
+                    Equal_touch = 0;                      //= تنظیم شمارنده تاچ یکسان به صفر
+                }
+                for (uint8_t Y = 0; X < TOUCH_BUTTON_NUM_Y; Y++) //= حلقه برای خواندن مقادیر تاچ ستون
+                {
+                    touch_pad_filter_read_smooth(Button_Y[Y], &touch_value_y); //= خواندن مقدار تاچ ستون
+                    if (touch_value_y == touch_value_y_old[Y])                 //= بررسی مقدار تاچ یکسان
+                        Equal_touch++;                                         //= افزایش شمارنده تاچ یکسان
+                    else
+                    {
+                        touch_value_y_old[Y] = touch_value_y; //= به‌روزرسانی مقدار تاچ قدیمی
+                        Equal_touch = 0;                      //= تنظیم شمارنده تاچ یکسان به صفر
+                    }
+
                     if (touch_value_x > base_values_x[X] + TOUCH_THRESH && !touch_[X][Y]) //= بررسی لمس شدن تاچ ردیف
                     {
                         if (touch_value_y > base_values_y[Y] + TOUCH_THRESH && !touch_[X][Y]) //= بررسی لمس شدن تاچ ستون
@@ -124,6 +145,7 @@ void loop()
                             Serial.printf("%c: TOUCHED\n", touch_number[X][Y]); //= نمایش پیام لمس شده
                         }
                     }
+
                     if (touch_value_x < base_values_x[X] + TOUCH_THRESH && touch_[X][Y]) //= بررسی عدم لمس شدن تاچ ردیف
                     {
                         if (touch_value_y < base_values_y[Y] + TOUCH_THRESH && touch_[X][Y]) //= بررسی عدم لمس شدن تاچ ستون
@@ -131,6 +153,20 @@ void loop()
                             touch_[X][Y] = false;                                     //= تنظیم وضعیت عدم لمس شده
                             Serial.printf("%c: Touch removed\n", touch_number[X][Y]); //= نمایش پیام لمس برداشته شده
                         }
+                    }
+                    if (touch_value_x > 200000 || touch_value_y > 200000 || Equal_touch >= 16) //= بررسی شرایط خاص تاچ
+                    {
+                        // if (Equal_touch >= 16)
+                        // Serial.print("Equal_touch : ");
+                        // Serial.println(Equal_touch);
+                        Equal_touch = 0;            //= تنظیم شمارنده تاچ یکسان به صفر
+                        touch_value_x = 0;          //= تنظیم مقدار تاچ ردیف به صفر
+                        touch_value_y = 0;          //= تنظیم مقدار تاچ ستون به صفر
+                        touch_pad_timeout_resume(); //= از سرگیری تایم اوت تاچ
+                        touch_pad_fsm_stop();       //= توقف تایمر داخلی تاچ
+                        touch_pad_reset();          //= ریست تاچ پد
+                        touch_pad_fsm_start();      //= شروع تایمر داخلی تاچ
+                        touch_pad_timeout_resume(); //= از سرگیری تایم اوت تاچ
                     }
                 }
             }

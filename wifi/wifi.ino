@@ -1,6 +1,7 @@
 //!!! مشکل کالیبراسیون
 //!!! تاچ آب
 
+#include "WiFi.h"
 #include <Arduino.h>          //= کتابخانه آردوینو
 #include "driver/touch_pad.h" //= کتابخانه تاچ پد
 
@@ -36,6 +37,10 @@ void setup()
     Serial.begin(115200); //= شروع ارتباط سریال با نرخ 115200
     delay(1000);          //= تاخیر برای اطمینان از شروع صحیح
 
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect();
+    delay(100);
+
     Serial.println("Initializing touch pad..."); //= پیام شروع تنظیمات
     touch_pad_init();                            //= مقداردهی اولیه‌ی پدهای تاچ
 
@@ -60,11 +65,19 @@ void setup()
         .smh_lvl = TOUCH_PAD_SMOOTH_IIR_2};
     touch_pad_filter_set_config(&filter_config); //= تنظیم فیلتر تاچ
 
+    touch_pad_waterproof_t touch_pad_waterproof = {
+        .guard_ring_pad = TOUCH_PAD_NUM1,
+        .shield_driver = TOUCH_PAD_SHIELD_DRV_L7,
+
+    };
+    touch_pad_waterproof_get_config(&touch_pad_waterproof);
+    touch_pad_waterproof_enable();
+
     touch_pad_denoise_enable(); //= فعال‌سازی کاهش نویز
     touch_pad_filter_enable();  //= فعال‌سازی فیلتر
     calibrate_touch();          //= کالیبراسیون تاچ
 
-    Serial.println("Touch pad initialized with denoise."); //= پیام اتمام تنظیمات
+    // Serial.println("Touch pad initialized with denoise."); //= پیام اتمام تنظیمات
 
     touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER); //= فعال‌سازی تایمر داخلی تاچ
     touch_pad_fsm_start();                        //= شروع تایمر داخلی تاچ
@@ -74,10 +87,54 @@ void setup()
 
 void loop()
 {
+    Serial.println("Scan start");
+
+    // WiFi.scanNetworks will return the number of networks found.
+    int n = WiFi.scanNetworks();
+    Serial.println("Scan done");
+    if (n == 0) {
+      Serial.println("no networks found");
+    } else {
+      Serial.print(n);
+      Serial.println(" networks found");
+      Serial.println("Nr | SSID                             | RSSI | CH | Encryption");
+      for (int i = 0; i < n; ++i) {
+        // Print SSID and RSSI for each network found
+        Serial.printf("%2d", i + 1);
+        Serial.print(" | ");
+        Serial.printf("%-32.32s", WiFi.SSID(i).c_str());
+        Serial.print(" | ");
+        Serial.printf("%4ld", WiFi.RSSI(i));
+        Serial.print(" | ");
+        Serial.printf("%2ld", WiFi.channel(i));
+        Serial.print(" | ");
+        switch (WiFi.encryptionType(i)) {
+          case WIFI_AUTH_OPEN: Serial.print("open"); break;
+          case WIFI_AUTH_WEP: Serial.print("WEP"); break;
+          case WIFI_AUTH_WPA_PSK: Serial.print("WPA"); break;
+          case WIFI_AUTH_WPA2_PSK: Serial.print("WPA2"); break;
+          case WIFI_AUTH_WPA_WPA2_PSK: Serial.print("WPA+WPA2"); break;
+          case WIFI_AUTH_WPA2_ENTERPRISE: Serial.print("WPA2-EAP"); break;
+          case WIFI_AUTH_WPA3_PSK: Serial.print("WPA3"); break;
+          case WIFI_AUTH_WPA2_WPA3_PSK: Serial.print("WPA2+WPA3"); break;
+          case WIFI_AUTH_WAPI_PSK: Serial.print("WAPI"); break;
+          default: Serial.print("unknown");
+        }
+        Serial.println();
+        delay(1);
+      }
+    }
+    Serial.println("");
+  
+    // Delete the scan result to free memory for code below.
+    WiFi.scanDelete();
+
+    //////////////////////////////////////////////////////////
+
     static unsigned long lastReadTime = 0;  //= زمان آخرین خواندن
     const unsigned long readInterval = 200; //= هر 200 میلی‌ثانیه یکبار خواندن
 
-    if (touch_pad_meas_is_done()) //= بررسی اتمام اندازه‌گیری تاچ
+    // if (touch_pad_meas_is_done()) //= بررسی اتمام اندازه‌گیری تاچ
     {
         if (millis() - lastReadTime >= readInterval) //= بررسی زمان خواندن مجدد
         {
