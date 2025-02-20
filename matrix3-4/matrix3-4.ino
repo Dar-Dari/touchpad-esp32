@@ -92,82 +92,80 @@ void setup()
         .mode = TOUCH_PAD_FILTER_IIR_16,
         .debounce_cnt = 7,
         .noise_thr = 2,
-        .jitter_step = 4,                        //= تنظیم مقدار جابجایی
-        .smh_lvl = TOUCH_PAD_SMOOTH_IIR_2};      //= تنظیم سطح صاف کننده
+        .jitter_step = 4,
+        .smh_lvl = TOUCH_PAD_SMOOTH_IIR_2};
     touch_pad_filter_set_config(&filter_config); //= تنظیم فیلتر تاچ
 
     touch_pad_denoise_enable(); //= فعال‌سازی کاهش نویز
     touch_pad_filter_enable();  //= فعال‌سازی فیلتر
     calibrate_touch();          //= کالیبراسیون تاچ
 
-    Serial.println("Touch pad initialized with denoise."); //= پیام اتمام تنظیمات
+    Serial.println("Touch pad initialized with denoise.");
 
     touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER); //= فعال‌سازی تایمر داخلی تاچ
     touch_pad_fsm_start();                        //= شروع تایمر داخلی تاچ
     delay(1000);                                  //= تاخیر برای اطمینان از شروع صحیح
     calibrate_touch();                            //= کالیبراسیون تاچ
-    // touch_pad_timeout_set(true, 100000); //= تنظیم تایم اوت تاچ
+    // touch_pad_timeout_set(true, 100000);
 }
 
 void loop()
 {
-    int a = micros(); //= خواندن زمان میکروثانیه
+
+    if (millis() - lastReadTime >= readInterval) //= بررسی زمان خواندن مجدد
     {
-        if (millis() - lastReadTime >= readInterval) //= بررسی زمان خواندن مجدد
+        lastReadTime = millis();
+        for (uint8_t X = 0; X < TOUCH_BUTTON_NUM_X; X++) //= حلقه برای خواندن مقادیر تاچ ردیف
         {
-            lastReadTime = millis();                         //= به‌روزرسانی زمان آخرین خواندن
-            for (uint8_t X = 0; X < TOUCH_BUTTON_NUM_X; X++) //= حلقه برای خواندن مقادیر تاچ ردیف
+            touch_pad_filter_read_smooth(Button_X[X], &touch_value_x); //= خواندن مقدار تاچ ردیف
+            if (touch_value_x == touch_value_x_old[X])                 //= بررسی مقدار تاچ یکسان
+                Equal_touch++;                                         //= افزایش شمارنده تاچ یکسان
+            else
             {
-                touch_pad_filter_read_smooth(Button_X[X], &touch_value_x); //= خواندن مقدار تاچ ردیف
-                if (touch_value_x == touch_value_x_old[X])                 //= بررسی مقدار تاچ یکسان
+                touch_value_x_old[X] = touch_value_x; //= به‌روزرسانی مقدار تاچ قدیمی
+                Equal_touch = 0;                      //= تنظیم شمارنده تاچ یکسان به صفر
+            }
+            for (uint8_t Y = 0; Y < TOUCH_BUTTON_NUM_Y; Y++) //= حلقه برای خواندن مقادیر تاچ ستون
+            {
+                touch_pad_filter_read_smooth(Button_Y[Y], &touch_value_y); //= خواندن مقدار تاچ ستون
+                if (touch_value_y == touch_value_y_old[Y])                 //= بررسی مقدار تاچ یکسان
                     Equal_touch++;                                         //= افزایش شمارنده تاچ یکسان
                 else
                 {
-                    touch_value_x_old[X] = touch_value_x; //= به‌روزرسانی مقدار تاچ قدیمی
+                    touch_value_y_old[Y] = touch_value_y; //= به‌روزرسانی مقدار تاچ قدیمی
                     Equal_touch = 0;                      //= تنظیم شمارنده تاچ یکسان به صفر
                 }
-                for (uint8_t Y = 0; X < TOUCH_BUTTON_NUM_Y; Y++) //= حلقه برای خواندن مقادیر تاچ ستون
+
+                if (touch_value_x > base_values_x[X] + TOUCH_THRESH && !touch_[X][Y]) //= بررسی لمس شدن تاچ ردیف
                 {
-                    touch_pad_filter_read_smooth(Button_Y[Y], &touch_value_y); //= خواندن مقدار تاچ ستون
-                    if (touch_value_y == touch_value_y_old[Y])                 //= بررسی مقدار تاچ یکسان
-                        Equal_touch++;                                         //= افزایش شمارنده تاچ یکسان
-                    else
+                    if (touch_value_y > base_values_y[Y] + TOUCH_THRESH && !touch_[X][Y]) //= بررسی لمس شدن تاچ ستون
                     {
-                        touch_value_y_old[Y] = touch_value_y; //= به‌روزرسانی مقدار تاچ قدیمی
-                        Equal_touch = 0;                      //= تنظیم شمارنده تاچ یکسان به صفر
+                        touch_[X][Y] = true;                                //= تنظیم وضعیت لمس شده
+                        Serial.printf("%c: TOUCHED\n", touch_number[X][Y]); //= نمایش پیام لمس شده
                     }
+                }
 
-                    if (touch_value_x > base_values_x[X] + TOUCH_THRESH && !touch_[X][Y]) //= بررسی لمس شدن تاچ ردیف
+                if (touch_value_x < base_values_x[X] + TOUCH_THRESH && touch_[X][Y]) //= بررسی عدم لمس شدن تاچ ردیف
+                {
+                    if (touch_value_y < base_values_y[Y] + TOUCH_THRESH && touch_[X][Y]) //= بررسی عدم لمس شدن تاچ ستون
                     {
-                        if (touch_value_y > base_values_y[Y] + TOUCH_THRESH && !touch_[X][Y]) //= بررسی لمس شدن تاچ ستون
-                        {
-                            touch_[X][Y] = true;                                //= تنظیم وضعیت لمس شده
-                            Serial.printf("%c: TOUCHED\n", touch_number[X][Y]); //= نمایش پیام لمس شده
-                        }
+                        touch_[X][Y] = false;                                     //= تنظیم وضعیت عدم لمس شده
+                        Serial.printf("%c: Touch removed\n", touch_number[X][Y]); //= نمایش پیام لمس برداشته شده
                     }
-
-                    if (touch_value_x < base_values_x[X] + TOUCH_THRESH && touch_[X][Y]) //= بررسی عدم لمس شدن تاچ ردیف
-                    {
-                        if (touch_value_y < base_values_y[Y] + TOUCH_THRESH && touch_[X][Y]) //= بررسی عدم لمس شدن تاچ ستون
-                        {
-                            touch_[X][Y] = false;                                     //= تنظیم وضعیت عدم لمس شده
-                            Serial.printf("%c: Touch removed\n", touch_number[X][Y]); //= نمایش پیام لمس برداشته شده
-                        }
-                    }
-                    if (touch_value_x > 200000 || touch_value_y > 200000 || Equal_touch >= 16) //= بررسی شرایط خاص تاچ
-                    {
-                        // if (Equal_touch >= 16)
-                        // Serial.print("Equal_touch : ");
-                        // Serial.println(Equal_touch);
-                        Equal_touch = 0;            //= تنظیم شمارنده تاچ یکسان به صفر
-                        touch_value_x = 0;          //= تنظیم مقدار تاچ ردیف به صفر
-                        touch_value_y = 0;          //= تنظیم مقدار تاچ ستون به صفر
-                        touch_pad_timeout_resume(); //= از سرگیری تایم اوت تاچ
-                        touch_pad_fsm_stop();       //= توقف تایمر داخلی تاچ
-                        touch_pad_reset();          //= ریست تاچ پد
-                        touch_pad_fsm_start();      //= شروع تایمر داخلی تاچ
-                        touch_pad_timeout_resume(); //= از سرگیری تایم اوت تاچ
-                    }
+                }
+                if (touch_value_x > 200000 || touch_value_y > 200000 || Equal_touch >= 16) //= بررسی شرایط خاص تاچ
+                {
+                    // if (Equal_touch >= 16)
+                    // Serial.print("Equal_touch : ");
+                    // Serial.println(Equal_touch);
+                    Equal_touch = 0;            //= تنظیم شمارنده تاچ یکسان به صفر
+                    touch_value_x = 0;          //= تنظیم مقدار تاچ ردیف به صفر
+                    touch_value_y = 0;          //= تنظیم مقدار تاچ ستون به صفر
+                    touch_pad_timeout_resume(); //= از سرگیری تایم اوت تاچ
+                    touch_pad_fsm_stop();       //= توقف تایمر داخلی تاچ
+                    touch_pad_reset();          //= ریست تاچ پد
+                    touch_pad_fsm_start();      //= شروع تایمر داخلی تاچ
+                    touch_pad_timeout_resume(); //= از سرگیری تایم اوت تاچ
                 }
             }
         }
