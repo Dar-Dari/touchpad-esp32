@@ -25,35 +25,42 @@ int read_touch()
 
             if (touch_value_x > base_values_x[X] + TOUCH_THRESH && touch_value_y > base_values_y[Y] + TOUCH_THRESH && touch_[X][Y] == 0) //= بررسی لمس شدن تاچ
             {
-                touch_[X][Y] = millis();                             //= تنظیم وضعیت لمس شده
-                Serial.printf(" %X  : TOUCH\n", touch_number[X][Y]); //= نمایش پیام لمس شده
+                touch_[X][Y] = millis();                              //= تنظیم وضعیت لمس شده
+                -Serial.printf(" %X  : TOUCH\n", touch_number[X][Y]); //= نمایش پیام لمس شده
             }
 
             if (touch_value_x < base_values_x[X] + TOUCH_THRESH && touch_value_y < base_values_y[Y] + TOUCH_THRESH && touch_[X][Y] > 0) //= بررسی اتمام تاچ
             {
-                touch_long[X][Y] = false;                                    //=تنظیم وضعیت عدم تاچ طولانی
-                touch_big_long[X][Y] = false;                                //=تنظیم وضعیت عدم ارور تاچ طولانی
-                touch_Standard[X][Y] = false;                                //=تنظیم وضعیت عدم تاچ
-                touch_[X][Y] = 0;                                            //= تنظیم وضعیت عدم لمس شده
-                Serial.printf(" %X  : Touch removed\n", touch_number[X][Y]); //= نمایش پیام لمس برداشته شده
+                touch_long[X][Y] = false;     //=تنظیم وضعیت عدم تاچ طولانی
+                touch_big_long[X][Y] = false; //=تنظیم وضعیت عدم ارور تاچ طولانی
+                touch_Standard[X][Y] = false; //=تنظیم وضعیت عدم تاچ
+                touch_[X][Y] = 0;             //= تنظیم وضعیت عدم لمس شده
+                Touch_Two[X] = false;
+                //- Serial.printf(" %X  : Touch removed\n", touch_number[X][Y]); //= نمایش پیام لمس برداشته شده
             }
             if (touch_value_x > base_values_x[X] + TOUCH_THRESH && touch_value_y > base_values_y[Y] + TOUCH_THRESH && millis() - touch_[X][Y] >= time_touch_Standard && !touch_Standard[X][Y]) //= برگشت دادن لمس شدن تاچ(برای جلوگیری از نویز اگه بعد تایم تاچ فعال بود برگرداند)
             {
-                Serial.printf(" %X  : TOUCHED \n", touch_number[X][Y]); //= نمایش پیام طولانی لمس شده
-                touch_Standard[X][Y] = true;                            //= تنظیم وضعیت تاچ شدن استاندارد
-                return (Touched_Number << 4) + touch_number[X][Y];      //= برگشت مقدار تاچ شده
+                //- Serial.printf(" %X  : TOUCHED \n", touch_number[X][Y]); //= نمایش پیام طولانی لمس شده
+                touch_Standard[X][Y] = true;                       //= تنظیم وضعیت تاچ شدن استاندارد
+                return (Touched_Number << 4) + touch_number[X][Y]; //= برگشت مقدار تاچ شده
             }
             if (touch_value_x > base_values_x[X] + TOUCH_THRESH && touch_value_y > base_values_y[Y] + TOUCH_THRESH && millis() - touch_[X][Y] >= time_touch_long && !touch_long[X][Y]) //= بررسی لمس شدن طولانی تاچ
             {
-                Serial.printf(" %X  : TOUCH LONG\n", touch_number[X][Y]); //= نمایش پیام طولانی لمس شده
-                touch_long[X][Y] = true;                                  //=تنظیم وضعیت تاچ طولانی
-                return (Touched_Long << 4) + touch_number[X][Y];          //= برگشت مقدار تاچ طولانی
+                //- Serial.printf(" %X  : TOUCH LONG\n", touch_number[X][Y]); //= نمایش پیام طولانی لمس شده
+                touch_long[X][Y] = true;                         //=تنظیم وضعیت تاچ طولانی
+                return (Touched_Long << 4) + touch_number[X][Y]; //= برگشت مقدار تاچ طولانی
             }
             if (touch_value_x > base_values_x[X] + TOUCH_THRESH && touch_value_y > base_values_y[Y] + TOUCH_THRESH && millis() - touch_[X][Y] >= time_touch_big_long && !touch_big_long[X][Y]) //= بررسی خطا لمس شدن تاچ
             {
-                Serial.printf(" %X  : ERROR!!! TOUCH BIG LONG\n", touch_number[X][Y]); //= نمایش پیام خطا لمس شده
-                touch_big_long[X][Y] = true;                                           //= تنظیم وضعیت فعال سازی ارور تاچ طولانی
-                return (Error_Touch_Big_Long << 4) + touch_number[X][Y];               //= برگشت ارور طولانی شدن تاچ
+                //- Serial.printf(" %X  : ERROR!!! TOUCH BIG LONG\n", touch_number[X][Y]); //= نمایش پیام خطا لمس شده
+                touch_big_long[X][Y] = true;                             //= تنظیم وضعیت فعال سازی ارور تاچ طولانی
+                return (Error_Touch_Big_Long << 4) + touch_number[X][Y]; //= برگشت ارور طولانی شدن تاچ
+            }
+
+            if (touch_long[X][0] && touch_long[X][2] && !Touch_Two[X]) //= بررسی دو تاچ شدن
+            {
+                Touch_Two[X] = true;           //= تنظیم وضعیت دو تاچ شدن
+                return (Two_Touched << 4) + X; //= برگشت دادن دو تاچ
             }
 
             if (touch_value_x > TOUCH_THRESH_FALS || touch_value_y > TOUCH_THRESH_FALS || Equal_touch >= 16) //= بررسی شرایط خاص تاچ

@@ -5,6 +5,7 @@
 #define Touched_Number 0xB
 #define Touched_Long 0xC
 #define Error_Touch_Big_Long 0xD
+#define Two_Touched 0xE
 
 #define TOUCH_BUTTON_NUM_X 4     //= تعداد تاچ ردیف
 #define TOUCH_BUTTON_NUM_Y 3     //= تعداد تاچ ستون
@@ -41,8 +42,9 @@ int touch_number[TOUCH_BUTTON_NUM_X][TOUCH_BUTTON_NUM_Y] = {
 
 static unsigned long touch_[TOUCH_BUTTON_NUM_X][TOUCH_BUTTON_NUM_Y]; //=وضعیت بلوک تاچ (لمس شده یا نه)
 bool touch_long[TOUCH_BUTTON_NUM_X][TOUCH_BUTTON_NUM_Y];             //=وضعیت لانگ تاچ
-bool touch_big_long[TOUCH_BUTTON_NUM_X][TOUCH_BUTTON_NUM_Y];         //=وضعیت لانگ تاچ
-bool touch_Standard[TOUCH_BUTTON_NUM_X][TOUCH_BUTTON_NUM_Y];         //=وضعیت لانگ تاچ
+bool touch_big_long[TOUCH_BUTTON_NUM_X][TOUCH_BUTTON_NUM_Y];         //=وضعیت ارور لانگ تاچ
+bool touch_Standard[TOUCH_BUTTON_NUM_X][TOUCH_BUTTON_NUM_Y];         //=وضعیت تاچ
+bool Touch_Two[TOUCH_BUTTON_NUM_X];                                  //= وضعیت دو تاچ
 
 uint32_t touch_value_x; //= مقدار خوانده شده تاچ ردیف
 uint32_t touch_value_y; //= مقدار خوانده شده تاچ ستون
